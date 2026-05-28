@@ -29,7 +29,7 @@ if 'df' in st.session_state:
     df = st.session_state['df']
     
     # --- PESTAÑAS DE ANÁLISIS ---
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 Explorador", "🚨 Anomalías", "🔮 Predictivo", "📄 Informe Ejecutivo"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Explorador", "🚨 Anomalías", "🔮 Predictivo", "📄 Informe Ejecutivo", "📖 Manual"])
     
     with tab1:
         st.subheader("Vista Preliminar de la Telemetría")
@@ -132,5 +132,44 @@ if 'df' in st.session_state:
             )
         except ImportError:
             st.error("⚠️ Falta la librería de PDF. Ejecuta `pip install fpdf` en tu terminal para habilitar la descarga.")
+            
+    with tab5:
+        st.subheader("📖 Manual de Operación para la Tripulación")
+        st.markdown("""
+        ### 1. Introducción al Sistema
+        El **AI Marine Analyzer** es una plataforma de Machine Learning diseñada específicamente para monitorear la salud operacional del motor principal **Caterpillar 3516B**. Evaluamos múltiples variables simultáneamente para predecir fallas antes de que ocurran.
+
+        ### 2. Flujo de Trabajo Rápido
+        1. **Definir Ventana Temporal**: Elige el número de días en el panel izquierdo.
+        2. **Cargar Datos**: Haz clic en "Cargar Datos de InfluxDB".
+        3. **Navegar por las pestañas**: Analiza las anomalías detectadas y causa raíz.
+
+        ### 3. Explicación de Modelos de IA
+        * **Isolation Forest (Anomalías)**: Agrupa variables físicas e identifica combinaciones inusuales (como baja presión de aceite a altas RPM). Los puntos rojos son anomalías críticas.
+        * **Random Forest (Predictivo)**: Entrena árboles de decisión para calcular matemáticamente qué sensores influyen más sobre la variable que selecciones.
+
+        ### 4. Diagnóstico de Fallas Comunes
+        | Síntoma en el Analizador | Algoritmo | Causa Probable | Acción Recomendada |
+        | :--- | :--- | :--- | :--- |
+        | Puntos rojos a bajas RPM | Isolation Forest | Baja presión en ralentí / desbalance | Revisar filtros de aceite y escapes |
+        | Escape alto + Inyector #8 > 70% | Random Forest | Falla inyector #8 / desbalance | Desmontar o probar inyector #8 |
+        | Cambios temp. + Delta Interc. | Random Forest | Incrustación en intercambiador | Limpieza física de tubos |
+        """)
+        
+        st.markdown("---")
+        
+        try:
+            from report_generator import generate_manual_pdf
+            manual_bytes = generate_manual_pdf()
+            st.download_button(
+                label="📥 Descargar Manual de Operación en PDF",
+                data=manual_bytes,
+                file_name="Manual_de_Operacion_AI_Marine_Analyzer.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+        except Exception as e:
+            st.error(f"Error al generar el manual en PDF: {e}")
+
 else:
     st.info("👈 Utiliza el panel izquierdo para descargar los datos desde InfluxDB y comenzar el análisis.")

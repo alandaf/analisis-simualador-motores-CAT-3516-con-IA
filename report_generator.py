@@ -124,3 +124,74 @@ def generate_pdf(df, anomalies_count, importance_df):
         pdf.cell(0, 8, 'Nota: No se ejecutó el análisis de Mantenimiento Predictivo antes de generar este reporte.', 0, 1)
         
     return pdf.output(dest='S').encode('latin1')
+
+def generate_manual_pdf():
+    pdf = PDFReport()
+    pdf.add_page()
+    
+    pdf.set_font('Arial', 'B', 14)
+    pdf.set_text_color(20, 50, 100)
+    pdf.cell(0, 10, 'MANUAL DE OPERACION: AI MARINE ANALYZER', 0, 1, 'C')
+    pdf.ln(5)
+    
+    pdf.set_font('Arial', 'B', 12)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(0, 8, '1. INTRODUCCION AL SISTEMA', 0, 1)
+    pdf.set_font('Arial', '', 10)
+    pdf.multi_cell(0, 6, "El AI Marine Analyzer es un software de Machine Learning disenado especificamente para monitorear la salud operacional del motor principal Caterpillar 3516B. A diferencia de las alarmas tradicionales, este sistema evalua multiples variables al mismo tiempo para predecir fallas antes de que ocurran.")
+    pdf.ln(5)
+    
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 8, '2. FLUJO DE TRABAJO RAPIDO', 0, 1)
+    pdf.set_font('Arial', '', 10)
+    pdf.multi_cell(0, 6, "1. Definir la Ventana Temporal (deslizador lateral izquierdo).\n"
+                         "2. Hacer clic en 'Cargar Datos de InfluxDB'.\n"
+                         "3. Navegar por las pestanas para evaluar el estado del motor.")
+    pdf.ln(5)
+    
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 8, '3. GUIA DE MODELOS DE INTELIGENCIA ARTIFICIAL', 0, 1)
+    
+    pdf.set_font('Arial', 'B', 10)
+    pdf.cell(0, 6, 'Pestana Anomalias (Isolation Forest):', 0, 1)
+    pdf.set_font('Arial', '', 10)
+    pdf.multi_cell(0, 6, "Este algoritmo busca comportamientos inusuales analizando multiples variables de forma conjunta (ej. bajas presiones con altas RPM). Los puntos rojos en la grafica representan anomalias estadisticas.")
+    
+    pdf.ln(2)
+    pdf.set_font('Arial', 'B', 10)
+    pdf.cell(0, 6, 'Pestana Predictivo (Random Forest):', 0, 1)
+    pdf.set_font('Arial', '', 10)
+    pdf.multi_cell(0, 6, "Evalua la importancia de cada sensor sobre una variable critica (ej. temperatura de escape). Permite determinar la causa raiz de desbalances termicos o fallas mecanicas.")
+    pdf.ln(10)
+    
+    pdf.add_page()
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 8, '4. TABLA DE DIAGNOSTICO DE FALLAS COMUNES', 0, 1)
+    pdf.ln(2)
+    
+    # Headers
+    pdf.set_font('Arial', 'B', 9)
+    pdf.cell(45, 8, 'Sintoma', 1, 0, 'C')
+    pdf.cell(35, 8, 'Algoritmo', 1, 0, 'C')
+    pdf.cell(50, 8, 'Causa Probable', 1, 0, 'C')
+    pdf.cell(60, 8, 'Accion Recomendada', 1, 1, 'C')
+    
+    # Rows
+    pdf.set_font('Arial', '', 8)
+    pdf.cell(45, 8, 'Puntos rojos a bajas RPM', 1, 0)
+    pdf.cell(35, 8, 'Isolation Forest', 1, 0)
+    pdf.cell(50, 8, 'Baja presion en ralenti / desbalance', 1, 0)
+    pdf.cell(60, 8, 'Revisar filtros de aceite y escapes', 1, 1)
+    
+    pdf.cell(45, 8, 'Escape alto + Inyector #8 > 70%', 1, 0)
+    pdf.cell(35, 8, 'Random Forest', 1, 0)
+    pdf.cell(50, 8, 'Falla inyector #8 / desbalance', 1, 0)
+    pdf.cell(60, 8, 'Desmontar o probar inyector #8', 1, 1)
+    
+    pdf.cell(45, 8, 'Cambios temp. + Delta Interc.', 1, 0)
+    pdf.cell(35, 8, 'Random Forest', 1, 0)
+    pdf.cell(50, 8, 'Incrustacion en intercambiador', 1, 0)
+    pdf.cell(60, 8, 'Limpieza fisica de tubos del interc.', 1, 1)
+    
+    return pdf.output(dest='S').encode('latin1')
+
