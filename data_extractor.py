@@ -46,7 +46,7 @@ def fetch_telemetry_data(days_back=30):
             df = df.rename(columns={"_time": "timestamp"})
             
         # Rellenar nulos (Forward Fill)
-        df = df.fillna(method='ffill')
+        df = df.ffill()
         
         return df
     except Exception as e:
