@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from data_extractor import fetch_telemetry_data
+from data_extractor import fetch_telemetry_data, fetch_maintenance_data
 from models.anomaly_detection import detect_anomalies
 from models.predictive_maintenance import feature_importance_analysis, cluster_operating_states
 from report_generator import SENSOR_NAMES
@@ -18,8 +18,10 @@ days = st.sidebar.slider("Ventana Histórica (Días)", min_value=1, max_value=60
 if st.sidebar.button("Cargar Datos de InfluxDB"):
     with st.spinner(f"Descargando datos de los últimos {days} días (agrupados por minuto)..."):
         df = fetch_telemetry_data(days_back=days)
+        df_maint = fetch_maintenance_data(days_back=days)
         if not df.empty:
             st.session_state['df'] = df
+            st.session_state['df_maint'] = df_maint
             st.sidebar.success(f"¡{len(df)} registros descargados!")
         else:
             st.sidebar.error("No se encontraron datos.")
@@ -117,6 +119,20 @@ if 'df' in st.session_state:
             informe_md += "*   *Aún no se ha ejecutado el análisis de causa raíz. Ve a la pestaña Predictivo para generarlo.*\n"
             
         st.info(informe_md)
+        
+        # Mostrar Historial de Mantenimiento si existe
+        df_maint = st.session_state.get('df_maint', pd.DataFrame())
+        if not df_maint.empty:
+            st.subheader("🛠️ Historial de Mantenimiento Registrado (InfluxDB)")
+            df_maint_show = df_maint.copy()
+            if 'timestamp' in df_maint_show.columns:
+                try:
+                    df_maint_show['timestamp'] = pd.to_datetime(df_maint_show['timestamp']).dt.strftime('%Y-%m-%d %H:%M:%S')
+                except:
+                    pass
+            cols = [c for c in ['timestamp', 'component', 'event_name'] if c in df_maint_show.columns]
+            st.dataframe(df_maint_show[cols], use_container_width=True)
+            
         st.markdown("---")
         
         # Botón de Descarga
