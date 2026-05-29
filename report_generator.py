@@ -6,6 +6,7 @@ SENSOR_NAMES = {
     'oil_pressure': 'Presión de Lubricación',
     'engine_rpm': 'RPM del Motor',
     'oil_filter_clogging': 'Taponamiento del Filtro de Aceite',
+    'filter_clog': 'Taponamiento del Filtro de Aceite',
     'exhaust_temperature': 'Temperatura de Escape',
     'vibration': 'Nivel de Vibración del Motor',
     'engine_temperature': 'Temperatura del Refrigerante',
@@ -122,6 +123,110 @@ def generate_pdf(df, anomalies_count, importance_df):
     else:
         pdf.set_font('Arial', 'I', 10)
         pdf.cell(0, 8, 'Nota: No se ejecutó el análisis de Mantenimiento Predictivo antes de generar este reporte.', 0, 1)
+        
+    # --- PÁGINA 2: DIAGNÓSTICOS AVANZADOS ---
+    pdf.add_page()
+    
+    # 4. Diagnóstico de Cilindros V16
+    cylinder_cols = [f'cylinder_{i}' for i in range(1, 17)]
+    if any(col in df.columns for col in cylinder_cols):
+        pdf.set_font('Arial', 'B', 12)
+        pdf.cell(0, 8, '4. DIAGNÓSTICO DE BALANCE TÉRMICO V16', 0, 1)
+        pdf.set_font('Arial', '', 10)
+        
+        last_row = df.iloc[-1]
+        cyl_temps = [last_row[col] for col in cylinder_cols if col in df.columns]
+        if cyl_temps:
+            max_temp = max(cyl_temps)
+            min_temp = min(cyl_temps)
+            current_delta = max_temp - min_temp
+            avg_temp_cyl = sum(cyl_temps) / len(cyl_temps)
+            
+            pdf.multi_cell(0, 6, f"Se evaluó la distribución de temperaturas de escape de los 16 cilindros en configuración V16. "
+                                 f"La temperatura media de escape actual es de {avg_temp_cyl:.1f} C. "
+                                 f"El desbalance térmico máximo en el último registro es de {current_delta:.1f} C "
+                                 f"(Cilindro más caliente: {max_temp:.1f} C | Cilindro más frío: {min_temp:.1f} C).")
+            pdf.ln(2)
+            
+            pdf.set_font('Arial', 'B', 10)
+            if current_delta > 50.0:
+                pdf.set_text_color(200, 0, 0)
+                # Encontrar cuál cilindro es
+                hottest_idx = 1
+                for idx, col in enumerate(cylinder_cols):
+                    if col in df.columns and last_row[col] == max_temp:
+                        hottest_idx = idx + 1
+                        break
+                pdf.cell(0, 8, f"ALERTA DE DESBALANCE: Exceso de diferencia térmica ({current_delta:.1f} C > 50 C).", 0, 1)
+                pdf.set_text_color(0, 0, 0)
+                pdf.set_font('Arial', '', 10)
+                pdf.multi_cell(0, 6, f"El cilindro #{hottest_idx} presenta una desviación de temperatura severa de {max_temp:.1f} C. "
+                                     f"Se recomienda realizar una prueba de inyección en el cilindro #{hottest_idx} y "
+                                     f"verificar la calibración de válvulas.")
+            else:
+                pdf.set_text_color(0, 120, 0)
+                pdf.cell(0, 8, "ESTADO: Balance térmico de cilindros dentro de límites normales.", 0, 1)
+                pdf.set_text_color(0, 0, 0)
+                pdf.set_font('Arial', '', 10)
+                pdf.multi_cell(0, 6, "La diferencia térmica entre todos los cilindros es estable y se encuentra dentro de la tolerancia recomendada de 50 C.")
+        pdf.ln(6)
+        
+    # 5. Proyecciones Predictivas RUL
+    if 'filter_clog' in df.columns or 'heat_exchanger_delta_t' in df.columns:
+        pdf.set_font('Arial', 'B', 12)
+        pdf.cell(0, 8, '5. PROYECCIONES PREDICTIVAS Y DEGRADACIÓN (RUL)', 0, 1)
+        pdf.set_font('Arial', '', 10)
+        pdf.multi_cell(0, 6, "Modelado predictivo de series de tiempo para estimar la Vida Útil Restante (RUL) de "
+                             "componentes del sistema de lubricación y enfriamiento:")
+        pdf.ln(2)
+        
+        # Filtro de aceite
+        if 'filter_clog' in df.columns:
+            from models.predictive_maintenance import predict_rul_linear
+            cur_val, slope, hours_left = predict_rul_linear(df, 'filter_clog', threshold=90.0, mode='increasing')
+            if cur_val is not None:
+                pdf.set_font('Arial', 'B', 10)
+                pdf.cell(0, 6, f"  - Filtro de Aceite: Obstrucción actual {cur_val:.1f}%", 0, 1)
+                pdf.set_font('Arial', '', 10)
+                if hours_left == float('inf'):
+                    pdf.cell(0, 6, "    Tendencia: Estable (No se proyecta saturación del filtro a corto plazo).", 0, 1)
+                else:
+                    pdf.cell(0, 6, f"    RUL Estimada: {hours_left:.1f} horas de operación hasta alcanzar el umbral de reemplazo (90%).", 0, 1)
+            pdf.ln(2)
+            
+        # Intercambiador de calor
+        if 'heat_exchanger_delta_t' in df.columns:
+            from models.predictive_maintenance import predict_rul_linear
+            cur_val, slope, hours_left = predict_rul_linear(df, 'heat_exchanger_delta_t', threshold=5.0, mode='decreasing')
+            if cur_val is not None:
+                pdf.set_font('Arial', 'B', 10)
+                pdf.cell(0, 6, f"  - Delta Térmico Intercambiador: Actual {cur_val:.1f} C", 0, 1)
+                pdf.set_font('Arial', '', 10)
+                if hours_left == float('inf'):
+                    pdf.cell(0, 6, "    Tendencia: Estable (El intercambiador mantiene un flujo térmico óptimo).", 0, 1)
+                else:
+                    pdf.cell(0, 6, f"    RUL Estimada: {hours_left:.1f} horas de operación antes de requerir mantenimiento por incrustaciones (Delta < 5 C).", 0, 1)
+        pdf.ln(6)
+        
+    # 6. Emisiones y Eficiencia (ECO & SCR)
+    if 'nox_raw_ppm' in df.columns:
+        pdf.set_font('Arial', 'B', 12)
+        pdf.cell(0, 8, '6. EFICIENCIA ENERGÉTICA Y CONTROL DE EMISIONES', 0, 1)
+        pdf.set_font('Arial', '', 10)
+        
+        avg_nox_raw = df['nox_raw_ppm'].mean()
+        avg_nox_red = df['nox_reduced_ppm'].mean() if 'nox_reduced_ppm' in df.columns else avg_nox_raw
+        
+        if avg_nox_raw > 0:
+            reduction_pct = ((avg_nox_raw - avg_nox_red) / avg_nox_raw) * 100
+        else:
+            reduction_pct = 0.0
+            
+        pdf.multi_cell(0, 6, f"El motor CAT 3516B cuenta con un sistema de post-tratamiento de Reducción Catalítica Selectiva (SCR). "
+                             f"Durante el período analizado, el sistema SCR redujo las emisiones de NOx en promedio un {reduction_pct:.1f}%. "
+                             f"El nivel de urea (DEF) final registrado es de {df['def_level_percent'].iloc[-1]:.1f}% en el tanque. "
+                             f"La tasa promedio de emisiones crudas fue de {avg_nox_raw:.1f} ppm frente a {avg_nox_red:.1f} ppm emitidas al escape.")
+        pdf.ln(2)
         
     return pdf.output(dest='S').encode('latin1')
 

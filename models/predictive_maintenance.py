@@ -1,5 +1,6 @@
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.cluster import KMeans
+from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 import pandas as pd
 
@@ -46,3 +47,53 @@ def cluster_operating_states(df, features, n_clusters=3):
     df_clean['cluster'] = kmeans.fit_predict(X_scaled)
     
     return df_clean
+
+def predict_rul_linear(df, target_col, threshold=90.0, mode='increasing'):
+    """
+    Realiza una regresión lineal sobre el tiempo (en segundos) para predecir 
+    cuándo la variable target_col cruzará el umbral (threshold) especificado.
+    mode: 'increasing' (la variable sube hacia el umbral, ej. obstrucción de filtro)
+          'decreasing' (la variable baja hacia el umbral, ej. delta de intercambiador)
+    Devuelve: (current_val, slope_per_hour, hours_to_threshold)
+    """
+    if df.empty or target_col not in df.columns or len(df) < 5:
+        return None, None, None
+        
+    df_clean = df.dropna(subset=[target_col, 'timestamp']).copy()
+    if len(df_clean) < 5:
+        return None, None, None
+        
+    # Convertir timestamp a segundos
+    df_clean['timestamp'] = pd.to_datetime(df_clean['timestamp'])
+    df_clean['seconds'] = (df_clean['timestamp'] - df_clean['timestamp'].min()).dt.total_seconds()
+    
+    X = df_clean[['seconds']].values
+    y = df_clean[target_col].values
+    
+    model = LinearRegression()
+    model.fit(X, y)
+    
+    current_val = y[-1]
+    slope = model.coef_[0]
+    slope_per_hour = slope * 3600
+    
+    if mode == 'increasing':
+        if slope <= 0:
+            hours_to_threshold = float('inf')
+        else:
+            diff = threshold - current_val
+            if diff <= 0:
+                hours_to_threshold = 0.0
+            else:
+                hours_to_threshold = (diff / slope) / 3600
+    else:  # decreasing
+        if slope >= 0:
+            hours_to_threshold = float('inf')
+        else:
+            diff = current_val - threshold
+            if diff <= 0:
+                hours_to_threshold = 0.0
+            else:
+                hours_to_threshold = (diff / -slope) / 3600
+                
+    return current_val, slope_per_hour, hours_to_threshold
