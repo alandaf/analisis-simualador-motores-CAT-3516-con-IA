@@ -4,3 +4,4 @@ plotly
 scikit-learn
 influxdb-client
 fpdf
+python-dotenv

@@ -1,12 +1,15 @@
+import os
 import pandas as pd
 from influxdb_client import InfluxDBClient
 import streamlit as st
+from dotenv import load_dotenv
 
-# Configuración estática de InfluxDB (basada en el simulador)
-INFLUXDB_URL = "https://us-east-1-1.aws.cloud2.influxdata.com"
-INFLUXDB_TOKEN = "TOKEN_REVOCADO"
-INFLUXDB_ORG = "Motor Data"
-INFLUXDB_BUCKET = "monitoreoram"
+load_dotenv()
+
+INFLUXDB_URL = os.getenv("INFLUXDB_URL", "https://us-east-1-1.aws.cloud2.influxdata.com")
+INFLUXDB_TOKEN = os.getenv("INFLUXDB_TOKEN")
+INFLUXDB_ORG = os.getenv("INFLUXDB_ORG", "Motor Data")
+INFLUXDB_BUCKET = os.getenv("INFLUXDB_BUCKET", "monitoreoram")
 
 @st.cache_data(ttl=3600)  # Caché de 1 hora para no saturar InfluxDB con peticiones repetidas
 def fetch_telemetry_data(days_back=30):

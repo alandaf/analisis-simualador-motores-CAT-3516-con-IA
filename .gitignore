@@ -1,3 +1,14 @@
 __pycache__/
 *.pyc
 *.jpg
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Tokens and secrets
+TOKEN*
+*.token
+*.secret
+*.key
